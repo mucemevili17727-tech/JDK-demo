@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>精客达 - 全域营销智能引擎</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <style>
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        body {
+            background-color: #E2E8F0;
+            font-family: 'Inter', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+            margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: optimizeLegibility;
+            color: #334155; /* 默认使用高级灰，提升质感 */
+        }
+
+        /* --- 全局排版微调 --- */
+        h1, h2, h3 { letter-spacing: -0.015em; color: #0F172A; } /* 收紧标题间距 */
+        .font-extrabold { font-weight: 700 !important; } /* 防止中文显示过粗糊裂 */
+        .font-black { font-weight: 800 !important; }
+        .quote-box { line-height: 1.8; letter-spacing: 0.02em; }
+
+        .page-view {
+            width: 100%; height: 100%; position: absolute; top: 0; left: 0;
+            display: none; flex-direction: column; background-color: #F8FAFC;
+            opacity: 0; transform: scale(0.98); transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .page-view.active { display: flex; opacity: 1; transform: scale(1); z-index: 10;}
+
+        /* 高级阴影与材质 */
+        .shadow-hyper { box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.03), 0 0 3px rgba(0,0,0,0.02); }
+        .shadow-floating { box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.08), 0 0 1px rgba(0,0,0,0.1); }
+        .shadow-modal { box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 2px rgba(0,0,0,0.1); }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+        }
+
+        .bento-card { background: #FFFFFF; border: 1px solid #F1F5F9; border-radius: 24px; }
+        
+        /* 地图抽象背景模拟 & 网格 */
+        .bg-grid { background-image: radial-gradient(#E2E8F0 1px, transparent 1px); background-size: 20px 20px; }
+        .bg-map-pattern {
+            background-color: #F1F5F9;
+            background-image: radial-gradient(#CBD5E1 1px, transparent 1px), radial-gradient(#CBD5E1 1px, transparent 1px);
+            background-position: 0 0, 20px 20px;
+            background-size: 40px 40px;
+            position: relative;
+        }
+        .map-layer {
+            position: absolute; inset: 0; opacity: 0.4; pointer-events: none;
+            background: 
+                linear-gradient(45deg, transparent 48%, #FFFFFF 48%, #FFFFFF 52%, transparent 52%) 0 0 / 150px 150px,
+                linear-gradient(-45deg, transparent 48%, #E2E8F0 48%, #E2E8F0 52%, transparent 52%) 0 0 / 200px 200px;
+        }
+
+        /* 模态弹窗 */
+        .modal-overlay {
+            position: absolute; inset: 0; background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(4px);
+            display: none; justify-content: center; align-items: center; z-index: 100;
+            opacity: 0; transition: opacity 0.3s ease;
+        }
+        .modal-overlay.active { display: flex; opacity: 1; }
+        .modal-content { transform: translateY(20px) scale(0.95); transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+        .modal-overlay.active .modal-content { transform: translateY(0) scale(1); }
+
+        /* 引导页幻灯片动画 */
+        .intro-slide { position: absolute; inset: 0; opacity: 0; transform: translateX(20px); transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1); pointer-events: none; }
+        .intro-slide.active { opacity: 1; transform: translateX(0); pointer-events: auto; }
+        .intro-slide.prev { transform: translateX(-20px); }
+
+        /* --- 新增：第四页及热力图专属动画 --- */
+        @keyframes heatPulse {
+            0%, 100% { opacity: 0.8; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.3); filter: blur(2px); }
+        }
+        .dim-customer { background: rgba(148, 163, 184, 0.4); box-shadow: 0 0 4px rgba(148,163,184,0.2); }
+        .hot-customer { background: rgba(239, 68, 68, 0.9); box-shadow: 0 0 10px rgba(239,68,68,0.8); animation: heatPulse 2s infinite; }
+        
+        .active .merge-orb-1 { animation: mergeIn 1.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        .active .merge-orb-2 { animation: mergeIn 1.5s cubic-bezier(0.16, 1, 0.3, 1) 0.1s forwards; }
+        .active .merge-orb-3 { animation: mergeIn 1.5s cubic-bezier(0.16, 1, 0.3, 1) 0.2s forwards; }
+        .active .scatter-core { animation: popCore 0.5s ease-out 1.2s forwards; opacity: 0; }
+        .active .scatter-node { animation: scatterOut 1s cubic-bezier(0.16, 1, 0.3, 1) 1.2s forwards; opacity: 0; transform: scale(0); }
+
+        @keyframes mergeIn {
+            0% { transform: var(--origin); opacity: 0; scale: 0; }
+            30% { opacity: 1; scale: 1; }
+            80% { transform: translate(0,0); scale: 0.5; opacity: 1; }
+            100% { transform: translate(0,0); scale: 0; opacity: 0; }
+        }
+        @keyframes popCore {
+            0% { scale: 0.5; opacity: 0; }
+            50% { scale: 1.2; opacity: 1; box-shadow: 0 0 40px rgba(59,130,246,1); }
+            100% { scale: 1; opacity: 1; box-shadow: 0 0 20px rgba(59,130,246,0.6); }
+        }
+        @keyframes scatterOut {
+            0% { transform: translate(0,0) scale(0); opacity: 0; }
+            100% { transform: var(--dest) scale(1); opacity: 1; }
+        }
+
+        .phone-mockup {
+            width: 100%; height: 100vh; max-width: 414px;
+            background-color: #F8FAFC; position: relative; overflow: hidden;
+            display: flex; flex-direction: column;
+        }
+        @media (min-width: 640px) {
+            .phone-mockup {
+                height: 860px; border-radius: 48px; border: 14px solid #0F172A;
+                box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.3), inset 0 0 0 2px #334155;
+            }
+        }
+    </style>
+    <script>
+        tailwind.config = { theme: { extend: { colors: { obsidian: '#0A0A0B', accent: '#2563EB', surface: '#F8FAFC', } } } }
+    </script>
+</head>
+<body>
+
+    <div class="phone-mockup">
+        
+        <!-- ==================== 0. 开屏引导页 (Intro) ==================== -->
+        <div id="page-intro" class="page-view active bg-surface">
+            <!-- 顶部跳过按钮 -->
+            <div class="absolute top-12 right-6 z-20">
+                <button onclick="skipIntro()" class="bg-slate-200/50 text-slate-500 px-4 py-1.5 rounded-full text-[13px] font-bold active:bg-slate-200 transition">跳过</button>
+            </div>
+
+            <div class="flex-1 relative overflow-hidden flex flex-col pt-20 pb-32">
+                <!-- ================= 幻灯片 1：LBS 拓客 ================= -->
+                <div id="intro-1" class="intro-slide active flex flex-col items-center px-8 text-center h-full pt-4">
+                    <!-- 顶部标签 -->
+                    <span class="px-3 py-1 bg-slate-100 text-slate-600 border border-slate-200 rounded-full text-[11px] font-bold tracking-widest mb-6 shadow-sm">核心模块 1 : LBS 商圈拓客</span>
+                    
+                    <!-- 痛点配图：客流热力图 -->
+                    <div class="w-64 h-64 bg-slate-900 rounded-[40px] shadow-hyper mb-8 flex items-center justify-center relative overflow-hidden border border-slate-100/50">
+                        <div class="absolute inset-0 bg-map-pattern opacity-20"></div>
+                        <!-- 暗淡客流 (不是你的客户) -->
+                        <div class="absolute top-8 left-10 w-2 h-2 rounded-full dim-customer"></div>
+                        <div class="absolute top-12 right-12 w-2.5 h-2.5 rounded-full dim-customer"></div>
+                        <div class="absolute bottom-16 left-14 w-1.5 h-1.5 rounded-full dim-customer"></div>
+                        <div class="absolute top-24 right-8 w-2 h-2 rounded-full dim-customer"></div>
+                        <div class="absolute bottom-10 right-20 w-2 h-2 rounded-full dim-customer"></div>
+                        
+                        <!-- 中心门店 -->
+                        <div class="absolute w-10 h-10 bg-white rounded-full flex items-center justify-center z-20 shadow-[0_0_20px_rgba(255,255,255,0.8)]">
+                            <i class="ph-fill ph-storefront text-blue-600 text-xl"></i>
+                        </div>
+                        
+                        <!-- 高亮客流 (你的客户) -->
+                        <div class="absolute top-[40%] left-[32%] w-3 h-3 rounded-full hot-customer" style="animation-delay: 0s"></div>
+                        <div class="absolute top-[58%] left-[60%] w-4 h-4 rounded-full hot-customer" style="animation-delay: 0.3s; background: rgba(249, 115, 22, 0.9)"></div>
+                        <div class="absolute top-[35%] left-[55%] w-2.5 h-2.5 rounded-full hot-customer" style="animation-delay: 0.7s"></div>
+                        <div class="absolute top-[62%] left-[40%] w-3.5 h-3.5 rounded-full hot-customer" style="animation-delay: 0.5s"></div>
+                        
+                        <!-- 辐射光晕 -->
+                        <div class="absolute w-32 h-32 bg-red-500/20 rounded-full blur-2xl z-10"></div>
+                    </div>
+
+                    <h2 class="text-[24px] font-bold tracking-tight mb-3">精准捕获周边客流</h2>
+                    <div class="bg-white/60 backdrop-blur-sm border border-slate-200 rounded-2xl p-4 mb-4 w-full shadow-sm quote-box">
+                        <p class="text-[14px] text-slate-700 font-medium">
+                            “一键雷达扫描，让附近 3 公里的客户，<br><span class="text-blue-600 font-bold text-[15px]">直接走进你的门店。</span>”
+                        </p>
+                    </div>
+                    <p class="text-[12px] text-slate-500 leading-relaxed px-2">告别发传单，基于 LBS 数据，点亮周边高净值住宅与写字楼客群。</p>
+                </div>
+
+                <!-- ================= 幻灯片 2：5G 营销 ================= -->
+                <div id="intro-2" class="intro-slide flex flex-col items-center px-8 text-center h-full pt-4">
+                    <!-- 顶部标签 -->
+                    <span class="px-3 py-1 bg-slate-100 text-slate-600 border border-slate-200 rounded-full text-[11px] font-bold tracking-widest mb-6 shadow-sm">核心模块 2 : 5G 智能触达</span>
+                    
+                    <!-- 痛点配图：1对多连接转化 -->
+                    <div class="w-64 h-64 bg-gradient-to-br from-emerald-50 to-teal-100 rounded-[40px] shadow-hyper mb-8 flex items-center justify-center relative overflow-hidden border border-slate-100/50">
+                        <!-- 中心设备 -->
+                        <div class="w-12 h-20 bg-white rounded-xl shadow-lg border border-slate-100 flex flex-col items-center pt-2 z-20 relative">
+                            <div class="w-4 h-1 bg-slate-200 rounded-full mb-2"></div>
+                            <i class="ph-fill ph-paper-plane-tilt text-emerald-500 text-xl"></i>
+                        </div>
+                        <!-- 触达连接线与客户群 -->
+                        <div class="absolute w-full h-full flex items-center justify-center">
+                            <div class="absolute w-1 h-16 bg-gradient-to-t from-emerald-400 to-transparent top-10 left-16 rotate-[-45deg] opacity-60"></div>
+                            <div class="absolute top-8 left-10 bg-white p-1.5 rounded-full shadow-md z-30"><i class="ph-fill ph-user text-emerald-500 text-sm"></i></div>
+                            
+                            <div class="absolute w-1 h-16 bg-gradient-to-t from-emerald-400 to-transparent top-8 right-16 rotate-[45deg] opacity-60"></div>
+                            <div class="absolute top-6 right-12 bg-white p-1.5 rounded-full shadow-md z-30 flex items-center justify-center"><i class="ph-bold ph-ticket text-orange-500 text-sm"></i></div>
+                            
+                            <div class="absolute w-1 h-14 bg-gradient-to-t from-emerald-400 to-transparent bottom-12 left-16 rotate-[-135deg] opacity-60"></div>
+                            <div class="absolute bottom-8 left-12 bg-white p-1.5 rounded-full shadow-md z-30"><i class="ph-fill ph-check-circle text-emerald-500 text-sm"></i></div>
+                        </div>
+                    </div>
+
+                    <h2 class="text-[24px] font-bold tracking-tight mb-3">瞬间唤醒沉睡老客</h2>
+                    <div class="bg-white/60 backdrop-blur-sm border border-slate-200 rounded-2xl p-4 mb-4 w-full shadow-sm quote-box">
+                        <p class="text-[14px] text-slate-700 font-medium">
+                            “告别石沉大海的群发，用一条 5G 短信，<br><span class="text-emerald-600 font-bold text-[15px]">让老客户再次为你买单。</span>”
+                        </p>
+                    </div>
+                    <p class="text-[12px] text-slate-500 leading-relaxed px-2">卡片化富媒体展示，短信直连小程序与优惠券，全场景无感引导复购。</p>
+                </div>
+
+                <!-- ================= 幻灯片 3：数据洞察 ================= -->
+                <div id="intro-3" class="intro-slide flex flex-col items-center px-8 text-center h-full pt-4">
+                    <!-- 顶部标签 -->
+                    <span class="px-3 py-1 bg-slate-100 text-slate-600 border border-slate-200 rounded-full text-[11px] font-bold tracking-widest mb-6 shadow-sm">核心模块 3 : 全景数据洞察</span>
+                    
+                    <!-- 痛点配图：增长柱状体与漏斗 -->
+                    <div class="w-64 h-64 bg-gradient-to-br from-amber-50 to-orange-100 rounded-[40px] shadow-hyper mb-8 flex items-end justify-center pb-6 relative overflow-hidden border border-slate-100/50 px-8">
+                        <div class="absolute inset-0 flex items-center justify-center opacity-20">
+                            <i class="ph-bold ph-chart-line-up text-[120px] text-orange-500"></i>
+                        </div>
+                        <div class="flex items-end justify-between w-full h-32 z-20">
+                            <div class="w-10 bg-amber-200 rounded-t-xl h-12 relative flex justify-center"><div class="absolute -top-6 text-[10px] font-bold text-amber-700 whitespace-nowrap">曝光</div></div>
+                            <div class="w-10 bg-amber-400 rounded-t-xl h-20 relative flex justify-center"><div class="absolute -top-6 text-[10px] font-bold text-amber-800 whitespace-nowrap">领券</div></div>
+                            <div class="w-10 bg-orange-500 rounded-t-xl h-32 relative shadow-[0_0_20px_rgba(249,115,22,0.4)] flex justify-center"><div class="absolute -top-6 text-[11px] font-black text-orange-900 whitespace-nowrap">到店核销</div></div>
+                        </div>
+                    </div>
+
+                    <h2 class="text-[24px] font-bold tracking-tight mb-3">每笔投入清晰可见</h2>
+                    <div class="bg-white/60 backdrop-blur-sm border border-slate-200 rounded-2xl p-4 mb-4 w-full shadow-sm quote-box">
+                        <p class="text-[14px] text-slate-700 font-medium">
+                            “拒绝花冤枉钱，全链路数据实时追踪，<br><span class="text-orange-500 font-bold text-[15px]">让每一次营销获客都算数。</span>”
+                        </p>
+                    </div>
+                    <p class="text-[12px] text-slate-500 leading-relaxed px-2">实时监测曝光、领券到核销的全景漏斗，智能优化下一场经营策略。</p>
+                </div>
+
+                <!-- ================= 幻灯片 4：融合升华与祝福 ================= -->
+                <div id="intro-4" class="intro-slide flex flex-col items-center px-8 text-center h-full pt-4">
+                    <!-- 顶部标签 -->
+                    <span class="px-3 py-1 bg-slate-800 text-white rounded-full text-[11px] font-bold tracking-widest mb-4 shadow-sm border border-slate-700">精客达 · 全域营销矩阵</span>
+                    
+                    <!-- 核心动效：三体融合与散发 -->
+                    <div class="w-64 h-64 bg-obsidian rounded-[40px] shadow-hyper mb-6 flex items-center justify-center relative overflow-hidden border border-slate-800">
+                        <!-- 融合光球 -->
+                        <div class="absolute w-10 h-10 bg-blue-500 rounded-full blur-md merge-orb-1" style="--origin: translate(-60px, -60px);"></div>
+                        <div class="absolute w-10 h-10 bg-emerald-500 rounded-full blur-md merge-orb-2" style="--origin: translate(60px, -40px);"></div>
+                        <div class="absolute w-10 h-10 bg-amber-500 rounded-full blur-md merge-orb-3" style="--origin: translate(0, 60px);"></div>
+                        
+                        <!-- 核心引擎 -->
+                        <div class="w-16 h-16 bg-gradient-to-tr from-blue-600 to-indigo-500 rounded-full flex items-center justify-center scatter-core z-20 border-2 border-white/20">
+                            <i class="ph-fill ph-rocket-launch text-white text-[28px]"></i>
+                        </div>
+
+                        <!-- 散发的功能图标 -->
+                        <div class="absolute w-10 h-10 bg-white/10 backdrop-blur-md border border-white/20 rounded-[12px] flex items-center justify-center scatter-node z-10" style="--dest: translate(-70px, -60px);">
+                            <i class="ph-fill ph-radar text-blue-400 text-lg"></i>
+                        </div>
+                        <div class="absolute w-10 h-10 bg-white/10 backdrop-blur-md border border-white/20 rounded-[12px] flex items-center justify-center scatter-node z-10" style="--dest: translate(70px, -45px);">
+                            <i class="ph-fill ph-paper-plane-tilt text-emerald-400 text-lg"></i>
+                        </div>
+                        <div class="absolute w-10 h-10 bg-white/10 backdrop-blur-md border border-white/20 rounded-[12px] flex items-center justify-center scatter-node z-10" style="--dest: translate(-50px, 60px);">
+                            <i class="ph-fill ph-chart-donut text-amber-400 text-lg"></i>
+                        </div>
+                        <div class="absolute w-10 h-10 bg-white/10 backdrop-blur-md border border-white/20 rounded-[12px] flex items-center justify-center scatter-node z-10" style="--dest: translate(60px, 60px);">
+                            <i class="ph-fill ph-ticket text-pink-400 text-lg"></i>
+                        </div>
+                        <div class="absolute w-10 h-10 bg-white/10 backdrop-blur-md border border-white/20 rounded-[12px] flex items-center justify-center scatter-node z-10" style="--dest: translate(0, -80px);">
+                            <i class="ph-fill ph-storefront text-purple-400 text-lg"></i>
+                        </div>
+                    </div>
+
+                    <!-- 老板寄语 -->
+                    <h2 class="text-[20px] font-bold tracking-tight mb-3">致每一位用心经营的你</h2>
+                    <div class="bg-gradient-to-br from-slate-900 to-slate-800 rounded-[20px] p-5 w-full shadow-lg relative overflow-hidden">
+                        <div class="absolute top-[-20%] right-[-10%] w-24 h-24 bg-blue-500/20 blur-xl rounded-full"></div>
+                        <p class="text-[13px] text-slate-300 font-normal leading-relaxed text-left relative z-10">
+                            生意难做，但总有人在默默突围。<br><br>
+                            精客达将 <span class="text-white font-medium">拓客、营销、数据</span> 融为一体，愿做你最坚实的后盾。用科技为你引流，用数据为你指路。<br>
+                            <span class="text-[14px] text-amber-400 font-bold block mt-3 flex items-center"><i class="ph-fill ph-hands-clapping mr-1.5 text-lg"></i> 祝你的门店：客似云来，日进斗金！</span>
+                        </p>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- 底部导航器与按钮 -->
+            <div class="absolute bottom-10 left-0 w-full px-8 flex justify-between items-center z-20">
+                <!-- 指示器 -->
+                <div class="flex space-x-2">
+                    <div id="dot-1" class="w-6 h-1.5 rounded-full bg-obsidian transition-all"></div>
+                    <div id="dot-2" class="w-1.5 h-1.5 rounded-full bg-slate-300 transition-all"></div>
+                    <div id="dot-3" class="w-1.5 h-1.5 rounded-full bg-slate-300 transition-all"></div>
+                    <div id="dot-4" class="w-1.5 h-1.5 rounded-full bg-slate-300 transition-all"></div>
+                </div>
+                <!-- 操作按钮 -->
+                <button id="btnNextIntro" onclick="nextIntro()" class="bg-obsidian text-white w-14 h-14 rounded-full flex items-center justify-center shadow-floating active:scale-95 transition-transform">
+                    <i class="ph-bold ph-arrow-right text-xl"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- ==================== 0.1 登录页 (Login) ==================== -->
+        <div id="page-login" class="page-view bg-surface bg-grid">
+            <div class="px-8 flex-1 flex flex-col justify-center relative z-10 -mt-20">
+                <div class="w-14 h-14 bg-obsidian text-white rounded-[18px] flex items-center justify-center text-3xl shadow-lg shadow-black/10 mb-8">
+                    <i class="ph-fill ph-paper-plane-tilt"></i>
+                </div>
+                <h1 class="text-[28px] font-bold tracking-tight mb-2 leading-tight">进入精客达。</h1>
+                <p class="text-slate-500 text-[14px] font-medium mb-10">新一代本地生活全域营销引擎</p>
+
+                <div class="space-y-4">
+                    <div class="relative group">
+                        <div class="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-obsidian transition-colors">
+                            <i class="ph ph-device-mobile text-xl"></i>
+                        </div>
+                        <input type="tel" placeholder="手机号" value="13800138000" class="w-full py-4 pl-12 pr-4 text-[16px] text-slate-900 bg-white border border-slate-200 rounded-2xl focus:outline-none focus:border-obsidian focus:ring-1 focus:ring-obsidian transition-all shadow-sm font-medium">
+                    </div>
+                    
+                    <div class="relative group flex">
+                        <div class="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-obsidian transition-colors">
+                            <i class="ph ph-lock-key text-xl"></i>
+                        </div>
+                        <input type="text" placeholder="验证码" value="8888" class="w-full py-4 pl-12 pr-28 text-[16px] text-slate-900 bg-white border border-slate-200 rounded-2xl focus:outline-none focus:border-obsidian focus:ring-1 focus:ring-obsidian transition-all shadow-sm font-medium">
+                        <button class="absolute inset-y-2 right-2 px-4 bg-slate-50 hover:bg-slate-100 text-slate-700 text-[13px] font-semibold rounded-xl transition-colors border border-slate-100">获取</button>
+                    </div>
+                </div>
+
+                <button id="btnLogin" onclick="handleLogin()" class="w-full bg-obsidian text-white rounded-2xl py-4 mt-8 text-[16px] font-semibold shadow-lg shadow-black/5 hover:bg-slate-800 transition-all active:scale-[0.98] flex justify-center items-center">
+                    <span id="loginText">安全登录 <i class="ph-bold ph-arrow-right ml-1"></i></span>
+                    <i id="loginLoading" class="ph-bold ph-spinner animate-spin hidden text-xl"></i>
+                </button>
+                <div class="text-center mt-6 text-[12px] text-slate-400 font-medium">
+                    点击继续即代表同意 <a href="#" class="text-slate-900 underline underline-offset-2 decoration-slate-300">用户协议</a>
+                </div>
+            </div>
+            <div class="absolute bottom-10 w-full text-center text-[11px] text-slate-400 font-semibold tracking-widest uppercase">Sun Data Tech</div>
+        </div>
+
+        <!-- ==================== 0.2 选择门店页 (Store) ==================== -->
+        <div id="page-store" class="page-view bg-surface">
+            <div class="px-6 pt-14 pb-4 flex items-center justify-between sticky top-0 bg-surface/80 backdrop-blur-xl z-20">
+                <button onclick="switchPage('page-login')" class="text-slate-900 w-10 h-10 -ml-2 rounded-full hover:bg-slate-100 flex items-center justify-center transition-colors">
+                    <i class="ph-bold ph-arrow-left text-xl"></i>
+                </button>
+                <h2 class="text-[17px] font-bold text-slate-900">选择工作区</h2>
+                <div class="w-10"></div>
+            </div>
+            <div class="px-6 pt-2 flex-1 overflow-y-auto no-scrollbar pb-10">
+                <div class="space-y-4">
+                    <!-- 门店卡片 -->
+                    <div onclick="switchPage('page-dashboard')" class="bg-white rounded-[24px] p-6 shadow-hyper border border-slate-100 cursor-pointer active:scale-[0.97] hover:border-slate-300 transition-all group">
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="w-12 h-12 bg-slate-50 rounded-[16px] flex items-center justify-center text-slate-900 border border-slate-100 group-hover:bg-obsidian group-hover:text-white transition-colors">
+                                <i class="ph-fill ph-storefront text-xl"></i>
+                            </div>
+                            <span class="bg-slate-100 text-slate-600 text-[11px] font-bold px-3 py-1.5 rounded-full uppercase tracking-wider">主店</span>
+                        </div>
+                        <h3 class="font-bold text-slate-900 text-[18px] mb-1">南山旗舰店</h3>
+                        <div class="text-[13px] text-slate-500 font-medium mb-3">科技园 · 餐饮简餐</div>
+                        <div class="flex items-center text-[12px] text-slate-400">
+                            <i class="ph-fill ph-map-pin mr-1.5"></i> 深圳市南山区科兴科学园A栋
+                        </div>
+                    </div>
+                    
+                    <div onclick="switchPage('page-dashboard')" class="bg-white rounded-[24px] p-6 shadow-hyper border border-slate-100 cursor-pointer active:scale-[0.97] hover:border-slate-300 transition-all group">
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="w-12 h-12 bg-slate-50 rounded-[16px] flex items-center justify-center text-slate-900 border border-slate-100 group-hover:bg-obsidian group-hover:text-white transition-colors">
+                                <i class="ph-fill ph-storefront text-xl"></i>
+                            </div>
+                            <span class="bg-blue-50 text-blue-600 text-[11px] font-bold px-3 py-1.5 rounded-full uppercase tracking-wider">分店</span>
+                        </div>
+                        <h3 class="font-bold text-slate-900 text-[18px] mb-1">福田星河店</h3>
+                        <div class="text-[13px] text-slate-500 font-medium mb-3">购物中心 · 餐饮简餐</div>
+                        <div class="flex items-center text-[12px] text-slate-400">
+                            <i class="ph-fill ph-map-pin mr-1.5"></i> 深圳市福田区星河COCO Park
+                        </div>
+                    </div>
+                </div>
+                <button class="w-full mt-6 py-4 rounded-[24px] border border-dashed border-slate-300 text-slate-500 hover:bg-slate-50 transition flex items-center justify-center font-semibold text-[14px]">
+                    <i class="ph-bold ph-plus mr-2"></i> 新增门店认领
+                </button>
+            </div>
+        </div>
+
+        <!-- ==================== 1. 工作台 (首页) ==================== -->
+        <div id="page-dashboard" class="page-view bg-surface pb-24 overflow-y-auto no-scrollbar">
+            <!-- 头部 -->
+            <div class="px-6 pt-14 pb-4 flex justify-between items-center bg-surface sticky top-0 z-20">
+                <div onclick="switchPage('page-store')" class="flex items-center space-x-2 bg-white px-3 py-1.5 rounded-full border border-slate-200 shadow-sm cursor-pointer active:scale-95 transition-transform">
+                    <div class="w-6 h-6 bg-obsidian rounded-full flex items-center justify-center">
+                        <i class="ph-fill ph-storefront text-white text-[10px]"></i>
+                    </div>
+                    <span class="text-[14px] font-bold text-slate-800">南山店</span>
+                    <i class="ph-bold ph-caret-down text-slate-400 text-[12px] pr-1"></i>
+                </div>
+                <div class="w-10 h-10 bg-white rounded-full border border-slate-200 flex items-center justify-center shadow-sm relative text-slate-600 cursor-pointer">
+                    <i class="ph-bold ph-bell text-lg"></i>
+                    <div class="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></div>
+                </div>
+            </div>
+
+            <div class="px-6">
+                <h2 class="text-[20px] font-bold mb-5">早安，张店长 👋</h2>
+                <div class="grid grid-cols-2 gap-4">
+                    
+                    <!-- 核心营收 -->
+                    <div class="col-span-2 bento-card p-6 shadow-hyper relative overflow-hidden">
+                        <div class="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-blue-50 to-transparent rounded-bl-full opacity-50 pointer-events-none"></div>
+                        <div class="flex justify-between items-end mb-1">
+                            <span class="text-[13px] font-medium text-slate-500">今日实时营收</span>
+                            <span class="flex items-center text-[12px] font-medium text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md">
+                                <i class="ph-bold ph-trend-up mr-1"></i> 12.5%
+                            </span>
+                        </div>
+                        <div class="text-[36px] font-bold tracking-tighter mb-4 flex items-baseline font-mono text-slate-900">
+                            <span class="text-[20px] mr-1 text-slate-400 font-sans">¥</span>12,580<span class="text-[20px] text-slate-400 font-sans">.00</span>
+                        </div>
+                        <div class="w-full h-10 mt-2 relative">
+                            <svg viewBox="0 0 300 40" class="w-full h-full" preserveAspectRatio="none">
+                                <path d="M0,35 C40,35 60,15 100,20 C140,25 160,5 200,10 C240,15 270,5 300,2" fill="none" stroke="#2563EB" stroke-width="3" stroke-linecap="round"/>
+                                <circle cx="300" cy="2" r="4" fill="#2563EB" class="animate-pulse"/>
+                            </svg>
+                        </div>
+                    </div>
+
+                    <!-- AI 智能拓客入口 (强烈引导) -->
+                    <div class="col-span-2 bento-card p-0 shadow-hyper bg-obsidian text-white overflow-hidden cursor-pointer active:scale-[0.98] transition-transform" onclick="switchPage('page-map')">
+                        <div class="relative p-6">
+                            <div class="absolute right-0 top-0 w-32 h-32 bg-blue-500/20 blur-2xl rounded-full"></div>
+                            <div class="flex justify-between items-center relative z-10">
+                                <div>
+                                    <div class="flex items-center mb-1">
+                                        <i class="ph-fill ph-radar text-blue-400 text-xl mr-2"></i>
+                                        <h3 class="text-[16px] font-bold text-white">LBS 全域拓客引擎</h3>
+                                    </div>
+                                    <p class="text-[12px] text-slate-300 font-normal mt-1">智能商圈分析 / POI定点打击</p>
+                                </div>
+                                <div class="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center backdrop-blur-md">
+                                    <i class="ph-bold ph-arrow-right text-white text-lg"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 首页功能列表 (分类矩阵) -->
+                    <div class="col-span-2 mt-2">
+                        <div class="flex justify-between items-center mb-4 px-1">
+                            <h3 class="text-[15px] font-bold text-slate-800">全部功能中心</h3>
+                            <div class="flex items-center text-[12px] font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded-md cursor-pointer active:scale-95 transition">
+                                <i class="ph-bold ph-sliders-horizontal mr-1"></i> 编辑编排
+                            </div>
+                        </div>
+
+                        <div class="space-y-4">
+                            <!-- 分类一：全域拓客 -->
+                            <div class="bento-card p-5 shadow-hyper border border-slate-100">
+                                <h4 class="text-[12px] font-medium text-slate-400 mb-4 flex items-center"><i class="ph-fill ph-rocket-launch mr-1.5 text-slate-300"></i> 营销与获客</h4>
+                                <div class="grid grid-cols-4 gap-y-5 gap-x-2 text-center">
+                                    <div class="flex flex-col items-center cursor-pointer active:scale-95 transition" onclick="switchPage('page-map')">
+                                        <div class="w-12 h-12 bg-slate-900 text-white rounded-[16px] flex items-center justify-center mb-2 shadow-md shadow-slate-900/10">
+                                            <i class="ph-fill ph-radar text-xl"></i>
+                                        </div>
+                                        <span class="text-[11px] font-medium text-slate-700">LBS商圈</span>
+                                    </div>
+                                    <div class="flex flex-col items-center cursor-pointer active:scale-95 transition" onclick="switchPage('page-sms')">
+                                        <div class="w-12 h-12 bg-[#EFF6FF] text-[#2563EB] rounded-[16px] flex items-center justify-center mb-2">
+                                            <i class="ph-fill ph-paper-plane-tilt text-xl"></i>
+                                        </div>
+                                        <span class="text-[11px] font-medium text-slate-700">5G群发</span>
+                                    </div>
+                                    <div class="flex flex-col items-center cursor-pointer active:scale-95 transition">
+                                        <div class="w-12 h-12 bg-[#FEF2F2] text-[#DC2626] rounded-[16px] flex items-center justify-center mb-2">
+                                            <i class="ph-fill ph-tiktok-logo text-xl"></i>
+                                        </div>
+                                        <span class="text-[11px] font-medium text-slate-700">同城团购</span>
+                                    </div>
+                                    <div class="flex flex-col items-center cursor-pointer active:scale-95 transition">
+                                        <div class="w-12 h-12 bg-[#FFF7ED] text-[#EA580C] rounded-[16px] flex items-center justify-center mb-2">
+                                            <i class="ph-fill ph-share-network text-xl"></i>
+                                        </div>
+                                        <span class="text-[11px] font-medium text-slate-700">社交裂变</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 分类二：门店与交易 -->
+                            <div class="bento-card p-5 shadow-hyper border border-slate-100">
+                                <h4 class="text-[12px] font-medium text-slate-400 mb-4 flex items-center"><i class="ph-fill ph-storefront mr-1.5 text-slate-300"></i> 门店与交易</h4>
+                                <div class="grid grid-cols-4 gap-y-5 gap-x-2 text-center">
+                                    <div class="flex flex-col items-center cursor-pointer active:scale-95 transition">
+                                        <div class="w-12 h-12 bg-[#F0FDF4] text-[#16A34A] rounded-[16px] flex items-center justify-center mb-2">
+                                            <i class="ph-bold ph-scan text-xl"></i>
+                                        </div>
+                                        <span class="text-[11px] font-medium text-slate-700">扫码核销</span>
+                                    </div>
+                                    <div class="flex flex-col items-center cursor-pointer active:scale-95 transition">
+                                        <div class="w-12 h-12 bg-[#EEF2FF] text-[#4F46E5] rounded-[16px] flex items-center justify-center mb-2">
+                                            <i class="ph-fill ph-receipt text-xl"></i>
+                                        </div>
+                                        <span class="text-[11px] font-medium text-slate-700">订单管理</span>
+                                    </div>
+                                    <div class="flex flex-col items-center cursor-pointer active:scale-95 transition">
+                                        <div class="w-12 h-12 bg-[#F8FAFC] text-[#475569] rounded-[16px] flex items-center justify-center mb-2 border border-slate-200">
+                                            <i class="ph-fill ph-package text-xl"></i>
+                                        </div>
+                                        <span class="text-[11px] font-medium text-slate-700">商品上架</span>
+                                    </div>
+                                    <div class="flex flex-col items-center cursor-pointer active:scale-95 transition">
+                                        <div class="w-12 h-12 bg-[#FDF4FF] text-[#C026D3] rounded-[16px] flex items-center justify-center mb-2">
+                                            <i class="ph-fill ph-star text-xl"></i>
+                                        </div>
+                                        <span class="text-[11px] font-medium text-slate-700">评价看板</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 分类三：客户与资产 -->
+                            <div class="bento-card p-5 shadow-hyper border border-slate-100">
+                                <h4 class="text-[12px] font-medium text-slate-400 mb-4 flex items-center"><i class="ph-fill ph-users mr-1.5 text-slate-300"></i> 客户与资产</h4>
+                                <div class="grid grid-cols-4 gap-y-5 gap-x-2 text-center">
+                                    <div class="flex flex-col items-center cursor-pointer active:scale-95 transition">
+                                        <div class="w-12 h-12 bg-[#ECFEFF] text-[#0891B2] rounded-[16px] flex items-center justify-center mb-2">
+                                            <i class="ph-fill ph-address-book text-xl"></i>
+                                        </div>
+                                        <span class="text-[11px] font-medium text-slate-700">客户CRM</span>
+                                    </div>
+                                    <div class="flex flex-col items-center cursor-pointer active:scale-95 transition">
+                                        <div class="w-12 h-12 bg-[#FEFCE8] text-[#CA8A04] rounded-[16px] flex items-center justify-center mb-2">
+                                            <i class="ph-fill ph-gift text-xl"></i>
+                                        </div>
+                                        <span class="text-[11px] font-medium text-slate-700">积分商城</span>
+                                    </div>
+                                    <div class="flex flex-col items-center cursor-pointer active:scale-95 transition">
+                                        <div class="w-12 h-12 bg-[#F0FDF4] text-[#15803D] rounded-[16px] flex items-center justify-center mb-2">
+                                            <i class="ph-fill ph-ticket text-xl"></i>
+                                        </div>
+                                        <span class="text-[11px] font-medium text-slate-700">优惠券库</span>
+                                    </div>
+                                    <div class="flex flex-col items-center cursor-pointer active:scale-95 transition" onclick="switchPage('page-profile')">
+                                        <div class="w-12 h-12 bg-[#FFF1F2] text-[#E11D48] rounded-[16px] flex items-center justify-center mb-2">
+                                            <i class="ph-fill ph-wallet text-xl"></i>
+                                        </div>
+                                        <span class="text-[11px] font-medium text-slate-700">钱包余额</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- ==================== 2. LBS 拓客引擎 (地图页) ==================== -->
+        <div id="page-map" class="page-view bg-map-pattern">
+            <div class="map-layer"></div>
+            
+            <div class="absolute top-14 left-4 right-4 z-20 flex justify-between items-center">
+                <div class="glass-panel rounded-full flex items-center px-4 py-3 w-full shadow-floating">
+                    <i class="ph-bold ph-magnifying-glass text-slate-400 text-lg mr-2"></i>
+                    <input type="text" placeholder="搜索区域、写字楼或商圈..." class="bg-transparent border-none focus:outline-none text-[14px] font-semibold text-slate-900 w-full placeholder-slate-400">
+                </div>
+            </div>
+
+            <div class="absolute top-32 right-4 z-20 flex flex-col bg-white rounded-2xl shadow-hyper overflow-hidden border border-slate-100">
+                <div id="btnModePoi" class="p-3 bg-blue-50 text-blue-600 flex flex-col items-center justify-center cursor-pointer transition" onclick="toggleMapMode('poi')">
+                    <i class="ph-fill ph-map-pin text-xl mb-1"></i>
+                    <span class="text-[10px] font-bold">POI模式</span>
+                </div>
+                <div class="w-full h-px bg-slate-100"></div>
+                <div id="btnModeArea" class="p-3 bg-white text-slate-400 hover:text-slate-700 flex flex-col items-center justify-center cursor-pointer transition" onclick="toggleMapMode('area')">
+                    <i class="ph-bold ph-vinyl-record text-xl mb-1"></i>
+                    <span class="text-[10px] font-bold">商圈模式</span>
+                </div>
+            </div>
+
+            <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10 flex flex-col items-center">
+                <div id="mapPinPoi" class="flex flex-col items-center animate-bounce-slight">
+                    <div class="bg-obsidian text-white px-4 py-2 rounded-2xl shadow-floating text-[13px] font-bold whitespace-nowrap mb-1 border-2 border-white flex items-center">
+                        <div class="w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center mr-2"><i class="ph-fill ph-coffee text-white text-[12px]"></i></div>
+                        星巴克 (科兴科学园店)
+                    </div>
+                    <div class="w-0 h-0 border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-t-[10px] border-t-obsidian"></div>
+                </div>
+                <div id="mapPinArea" class="hidden flex flex-col items-center relative">
+                    <div class="w-48 h-48 bg-blue-500/10 rounded-full border border-blue-500/30 flex items-center justify-center absolute -top-20"></div>
+                    <div class="bg-blue-600 text-white px-4 py-1.5 rounded-full shadow-floating text-[12px] font-bold whitespace-nowrap mb-1 relative z-10">
+                        覆盖半径 3.0km
+                    </div>
+                    <div class="w-3 h-3 bg-blue-600 border-2 border-white rounded-full relative z-10 shadow-sm"></div>
+                </div>
+            </div>
+
+            <div class="absolute bottom-40 right-4 z-20 w-12 h-12 bg-white rounded-full shadow-floating flex items-center justify-center text-slate-600 border border-slate-100 cursor-pointer active:scale-95">
+                <i class="ph-bold ph-crosshair text-xl"></i>
+            </div>
+
+            <div class="absolute bottom-0 w-full glass-panel rounded-t-[32px] pb-24 pt-6 px-6 z-30 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] transform transition-transform duration-300">
+                <div class="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-5"></div>
+                
+                <div class="flex justify-between items-start mb-5">
+                    <div>
+                        <h3 id="drawerTitle" class="text-[20px] font-black text-slate-900 mb-1">星巴克(科兴科学园店)</h3>
+                        <p id="drawerSub" class="text-[13px] font-medium text-slate-500 flex items-center">
+                            <i class="ph-fill ph-map-pin mr-1"></i> 深圳市南山区科苑路15号
+                        </p>
+                    </div>
+                    <div class="bg-blue-50 text-blue-600 px-3 py-1 rounded-lg text-[12px] font-bold">精准流量</div>
+                </div>
+
+                <button onclick="showModal('costModal')" class="w-full bg-obsidian text-white rounded-[20px] py-4 text-[16px] font-bold shadow-floating hover:bg-slate-800 transition-all active:scale-[0.98] flex justify-center items-center">
+                    生成洞察报告 <i class="ph-bold ph-arrow-right ml-2"></i>
+                </button>
+            </div>
+        </div>
+
+
+        <!-- ==================== 3. 洞察报告页 (数据分析) ==================== -->
+        <div id="page-report" class="page-view bg-surface overflow-y-auto no-scrollbar pb-24">
+            <div class="px-5 pt-14 pb-4 flex items-center sticky top-0 bg-surface/90 backdrop-blur-md z-20">
+                <button onclick="switchPage('page-map')" class="text-slate-900 w-10 h-10 -ml-2 rounded-full hover:bg-slate-100 flex items-center justify-center transition-colors">
+                    <i class="ph-bold ph-arrow-left text-xl"></i>
+                </button>
+                <div class="ml-2">
+                    <h2 class="text-[17px] font-bold text-slate-900 leading-tight">人群洞察报告</h2>
+                    <p class="text-[11px] text-slate-500 font-medium">基于 星巴克(科兴店) 1.0km 辐射</p>
+                </div>
+            </div>
+
+            <div class="px-5 mt-2 space-y-4">
+                <div class="bento-card p-5 shadow-hyper border border-slate-100">
+                    <h3 class="text-[13px] font-bold text-slate-900 mb-4 flex items-center"><i class="ph-fill ph-chart-donut text-blue-500 mr-1.5 text-lg"></i> 人群属性渗透</h3>
+                    <div class="flex gap-3">
+                        <div class="flex-1 bg-slate-50 rounded-2xl p-4 border border-slate-100">
+                            <div class="text-[28px] font-black text-blue-600 mb-1">33.4%</div>
+                            <div class="text-[12px] font-bold text-slate-600">居住人口占比较高</div>
+                            <div class="text-[10px] text-slate-400 mt-1">建议开启社区团购</div>
+                        </div>
+                        <div class="flex-1 bg-slate-50 rounded-2xl p-4 border border-slate-100">
+                            <div class="text-[28px] font-black text-slate-900 mb-1">13.1%</div>
+                            <div class="text-[12px] font-bold text-slate-600">工作人口占比较低</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bento-card p-5 shadow-hyper border border-slate-100">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-[14px] font-bold text-slate-900 flex items-center"><i class="ph-fill ph-buildings text-emerald-500 mr-1.5 text-lg"></i> 高渗透住宅小区 Top 5</h3>
+                        <span class="text-[11px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-md cursor-pointer">一键圈选</span>
+                    </div>
+                    <div class="space-y-4">
+                        <div>
+                            <div class="flex justify-between text-[13px] font-bold text-slate-800 mb-1.5">
+                                <span class="flex items-center"><span class="w-5 h-5 bg-amber-100 text-amber-600 rounded flex items-center justify-center text-[10px] mr-2">1</span>华润城润府一期</span>
+                                <span class="text-amber-600">32.3%</span>
+                            </div>
+                            <div class="w-full bg-slate-100 rounded-full h-1.5"><div class="bg-amber-500 h-1.5 rounded-full" style="width: 32.3%"></div></div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-[13px] font-bold text-slate-800 mb-1.5">
+                                <span class="flex items-center"><span class="w-5 h-5 bg-slate-200 text-slate-600 rounded flex items-center justify-center text-[10px] mr-2">2</span>大冲城市花园</span>
+                                <span class="text-slate-600">28.4%</span>
+                            </div>
+                            <div class="w-full bg-slate-100 rounded-full h-1.5"><div class="bg-slate-400 h-1.5 rounded-full" style="width: 28.4%"></div></div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-[13px] font-bold text-slate-800 mb-1.5">
+                                <span class="flex items-center"><span class="w-5 h-5 bg-amber-50/50 text-amber-700/50 rounded flex items-center justify-center text-[10px] mr-2">3</span>硅谷别墅</span>
+                                <span class="text-slate-500">21.0%</span>
+                            </div>
+                            <div class="w-full bg-slate-100 rounded-full h-1.5"><div class="bg-slate-300 h-1.5 rounded-full" style="width: 21.0%"></div></div>
+                        </div>
+                    </div>
+                    <button class="w-full mt-5 py-3.5 bg-obsidian text-white rounded-xl text-[14px] font-bold shadow-md active:scale-[0.98] transition">基于以上小区创建营销计划</button>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- ==================== 4. 短信营销/商城 (营销页) ==================== -->
+        <div id="page-sms" class="page-view bg-surface overflow-y-auto no-scrollbar pb-24">
+            <div class="px-6 pt-16 pb-6 bg-obsidian text-white rounded-b-[40px] shadow-lg relative overflow-hidden">
+                <div class="absolute right-0 top-0 w-48 h-48 bg-blue-500/30 blur-[40px] rounded-full"></div>
+                <h2 class="text-[24px] font-extrabold mb-1 relative z-10 text-white">营销中心</h2>
+                <div class="flex items-center text-slate-300 text-[13px] font-medium relative z-10 mb-6">
+                    当前短信额度：<span class="text-white font-bold text-[18px] ml-1 tracking-tight">50,000</span> 条
+                </div>
+                
+                <div class="bg-white/10 p-1 rounded-2xl flex backdrop-blur-md relative z-10 border border-white/10">
+                    <div class="flex-1 text-center py-2.5 bg-white text-obsidian rounded-xl text-[14px] font-bold shadow-sm">我的任务</div>
+                    <div class="flex-1 text-center py-2.5 text-white/70 font-medium text-[14px]">购买营销包</div>
+                </div>
+            </div>
+
+            <div class="px-5 mt-6 space-y-4">
+                <div class="bento-card p-5 border border-slate-100 shadow-sm flex justify-between items-center cursor-pointer active:scale-[0.98] transition">
+                    <div>
+                        <h4 class="text-[15px] font-bold text-slate-900 mb-1">女神节科兴园区定向引流</h4>
+                        <p class="text-[12px] text-slate-500 font-medium">进度：0 / 5000 条</p>
+                    </div>
+                    <span class="bg-amber-50 text-amber-600 px-3 py-1.5 rounded-lg text-[11px] font-bold flex items-center"><i class="ph-fill ph-clock mr-1"></i>待发送</span>
+                </div>
+
+                <div class="bento-card p-5 border border-slate-100 shadow-sm flex justify-between items-center cursor-pointer active:scale-[0.98] transition">
+                    <div>
+                        <h4 class="text-[15px] font-bold text-slate-900 mb-1">周末唤醒沉睡会员关怀</h4>
+                        <p class="text-[12px] text-slate-500 font-medium">进度：3400 / 3400 条</p>
+                    </div>
+                    <span class="bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-lg text-[11px] font-bold flex items-center"><i class="ph-fill ph-check-circle mr-1"></i>已完成</span>
+                </div>
+                
+                <div class="mt-8 flex justify-center">
+                    <button class="bg-blue-600 text-white px-8 py-4 rounded-2xl text-[15px] font-bold shadow-floating flex items-center active:scale-95 transition">
+                        <i class="ph-bold ph-plus text-lg mr-2"></i> 创建新任务
+                    </button>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- ==================== 5. 个人中心 ==================== -->
+        <div id="page-profile" class="page-view bg-surface overflow-y-auto no-scrollbar pb-24">
+            <div class="px-6 pt-16 pb-6">
+                <div class="flex items-center mb-8">
+                    <div class="w-16 h-16 rounded-[20px] bg-gradient-to-tr from-blue-100 to-indigo-100 border-2 border-white shadow-md overflow-hidden mr-4 flex-shrink-0 p-1">
+                        <img src="https://api.dicebear.com/7.x/notionists/svg?seed=Admin" class="w-full h-full object-cover rounded-2xl bg-white">
+                    </div>
+                    <div>
+                        <h2 class="text-[20px] font-extrabold text-slate-900 mb-0.5 tracking-tight">135 **** 3201 <i class="ph-bold ph-pencil-simple text-slate-400 text-[14px] ml-1 cursor-pointer"></i></h2>
+                        <span class="bg-obsidian text-white text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-wider">超级管理员</span>
+                    </div>
+                </div>
+
+                <div class="bento-card p-6 shadow-hyper border border-slate-100 bg-gradient-to-br from-slate-900 to-slate-800 text-white mb-6 relative overflow-hidden">
+                    <div class="absolute right-[-20%] bottom-[-50%] w-64 h-64 bg-amber-400/20 blur-3xl rounded-full"></div>
+                    <div class="flex justify-between items-center relative z-10 mb-6">
+                        <div class="flex items-center text-slate-300 text-[13px] font-medium">
+                            <i class="ph-fill ph-coin text-amber-400 text-lg mr-1.5"></i> 我的积分
+                        </div>
+                        <div class="text-[12px] font-bold bg-white/10 px-3 py-1.5 rounded-full backdrop-blur-sm cursor-pointer border border-white/10 active:bg-white/20">查看明细 <i class="ph-bold ph-caret-right ml-0.5"></i></div>
+                    </div>
+                    <div class="text-[40px] font-black tracking-tighter flex items-baseline relative z-10">
+                        638,214
+                    </div>
+                    <button class="w-full mt-5 bg-amber-400 text-amber-950 py-3.5 rounded-xl text-[14px] font-bold shadow-lg shadow-amber-500/20 active:scale-[0.98] transition">充值积分</button>
+                </div>
+
+                <div class="bento-card bg-white shadow-sm border border-slate-100 overflow-hidden">
+                    <div class="px-5 py-4 flex justify-between items-center border-b border-slate-50 cursor-pointer hover:bg-slate-50 transition">
+                        <span class="text-[14px] font-semibold text-slate-800 flex items-center"><i class="ph-fill ph-buildings text-slate-400 text-lg mr-3"></i> 门店管理</span>
+                        <i class="ph-bold ph-caret-right text-slate-300"></i>
+                    </div>
+                    <div class="px-5 py-4 flex justify-between items-center border-b border-slate-50 cursor-pointer hover:bg-slate-50 transition">
+                        <span class="text-[14px] font-semibold text-slate-800 flex items-center"><i class="ph-fill ph-users text-slate-400 text-lg mr-3"></i> 员工账号分配</span>
+                        <i class="ph-bold ph-caret-right text-slate-300"></i>
+                    </div>
+                    <div class="px-5 py-4 flex justify-between items-center cursor-pointer hover:bg-slate-50 transition">
+                        <span class="text-[14px] font-semibold text-slate-800 flex items-center"><i class="ph-fill ph-info text-slate-400 text-lg mr-3"></i> 当前版本</span>
+                        <span class="text-[12px] font-medium text-slate-400">V 2.0.1 (Pro)</span>
+                    </div>
+                </div>
+
+                <button class="w-full mt-6 py-4 rounded-[20px] bg-red-50 text-red-600 font-bold text-[14px] active:scale-[0.98] transition">退出登录</button>
+            </div>
+        </div>
+
+        <!-- ================== 公共组件：悬浮底部导航栏 ================== -->
+        <!-- 初始化时增加 opacity-0 和 pointer-events-none，防止在引导/登录页遮挡 -->
+        <div id="main-nav" class="absolute bottom-6 left-1/2 transform -translate-x-1/2 w-[92%] glass-panel rounded-[28px] px-2 py-2 flex justify-between items-center shadow-floating z-50 opacity-0 pointer-events-none transition-opacity duration-300">
+            <!-- Tab: 工作台 -->
+            <div id="tab-dashboard" class="nav-tab flex flex-col items-center justify-center w-[60px] cursor-pointer text-obsidian transition-all" onclick="switchPage('page-dashboard')">
+                <div class="tab-bg bg-slate-100 w-12 h-8 rounded-full flex items-center justify-center mb-0.5 transition-colors">
+                    <i class="ph-fill ph-house text-[20px] tab-icon"></i>
+                </div>
+                <span class="text-[10px] font-bold tab-text">工作台</span>
+            </div>
+            
+            <!-- Tab: LBS 拓客 -->
+            <div id="tab-map" class="nav-tab flex flex-col items-center justify-center w-[60px] cursor-pointer text-slate-400 hover:text-slate-800 transition-all" onclick="switchPage('page-map')">
+                <div class="tab-bg w-12 h-8 rounded-full flex items-center justify-center mb-0.5 transition-colors">
+                    <i class="ph-bold ph-radar text-[22px] tab-icon"></i>
+                </div>
+                <span class="text-[10px] font-medium tab-text">精准拓客</span>
+            </div>
+            
+            <!-- 中间按钮 -->
+            <div class="flex flex-col items-center justify-center -mt-8 cursor-pointer active:scale-95 transition-transform z-10 px-2" onclick="switchPage('page-dashboard')">
+                <div class="w-14 h-14 bg-blue-600 text-white rounded-full flex items-center justify-center shadow-lg shadow-blue-500/30 border-4 border-white/80">
+                    <i class="ph-bold ph-squares-four text-2xl"></i>
+                </div>
+            </div>
+            
+            <!-- Tab: 营销 -->
+            <div id="tab-sms" class="nav-tab flex flex-col items-center justify-center w-[60px] cursor-pointer text-slate-400 hover:text-slate-800 transition-all" onclick="switchPage('page-sms')">
+                <div class="tab-bg w-12 h-8 rounded-full flex items-center justify-center mb-0.5 transition-colors">
+                    <i class="ph-bold ph-chat-circle-text text-[22px] tab-icon"></i>
+                </div>
+                <span class="text-[10px] font-medium tab-text">营销</span>
+            </div>
+
+            <!-- Tab: 我的 -->
+            <div id="tab-profile" class="nav-tab flex flex-col items-center justify-center w-[60px] cursor-pointer text-slate-400 hover:text-slate-800 transition-all" onclick="switchPage('page-profile')">
+                <div class="tab-bg w-12 h-8 rounded-full flex items-center justify-center mb-0.5 transition-colors">
+                    <i class="ph-bold ph-user text-[22px] tab-icon"></i>
+                </div>
+                <span class="text-[10px] font-medium tab-text">我的</span>
+            </div>
+        </div>
+
+        <!-- ================== 模态弹窗：积分扣除确认 ================== -->
+        <div id="costModal" class="modal-overlay">
+            <div class="modal-content bg-white w-[85%] max-w-sm rounded-[28px] p-6 shadow-modal flex flex-col items-center text-center">
+                <div class="w-16 h-16 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mb-4">
+                    <i class="ph-fill ph-warning-circle text-[32px]"></i>
+                </div>
+                <h3 class="text-[18px] font-extrabold text-slate-900 mb-2">确认进行深度商圈分析？</h3>
+                <p class="text-[14px] text-slate-500 font-medium leading-relaxed mb-6">
+                    生成洞察报告即将消耗 <span class="text-amber-500 font-bold text-[16px]">230</span> 积分<br>
+                    <span class="text-[12px]">当前余额: 638,214 积分</span>
+                </p>
+                <div class="flex w-full gap-3">
+                    <button onclick="hideModal('costModal')" class="flex-1 py-3.5 bg-slate-100 text-slate-600 rounded-xl font-bold text-[15px] active:scale-95 transition">取消</button>
+                    <button onclick="confirmAnalysis()" class="flex-1 py-3.5 bg-obsidian text-white rounded-xl font-bold text-[15px] shadow-md active:scale-95 transition">确定执行</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- 交互逻辑 JS -->
+    <script>
+        // --- 开屏引导逻辑 ---
+        let currentIntroStep = 1;
+        const totalIntroSteps = 4; // 更新为 4 页
+
+        function updateIntroUI() {
+            // 更新幻灯片
+            document.querySelectorAll('.intro-slide').forEach(el => {
+                el.classList.remove('active', 'prev');
+                const idNum = parseInt(el.id.split('-')[1]);
+                if (idNum === currentIntroStep) {
+                    el.classList.add('active');
+                } else if (idNum < currentIntroStep) {
+                    el.classList.add('prev');
+                }
+            });
+
+            // 更新指示器圆点
+            for(let i=1; i<=totalIntroSteps; i++) {
+                const dot = document.getElementById(`dot-${i}`);
+                if(i === currentIntroStep) {
+                    dot.className = 'w-6 h-1.5 rounded-full bg-obsidian transition-all';
+                } else {
+                    dot.className = 'w-1.5 h-1.5 rounded-full bg-slate-300 transition-all';
+                }
+            }
+
+            // 更新按钮状态
+            const btn = document.getElementById('btnNextIntro');
+            if (currentIntroStep === totalIntroSteps) {
+                btn.innerHTML = '<span class="text-[14px] font-bold px-4 whitespace-nowrap">开启爆单之旅</span>';
+                btn.classList.remove('w-14');
+                btn.classList.add('w-auto', 'px-6', 'bg-blue-600', 'shadow-blue-500/30');
+            } else {
+                btn.innerHTML = '<i class="ph-bold ph-arrow-right text-xl"></i>';
+                btn.classList.add('w-14');
+                btn.classList.remove('w-auto', 'px-6', 'bg-blue-600', 'shadow-blue-500/30');
+            }
+        }
+
+        function nextIntro() {
+            if (currentIntroStep < totalIntroSteps) {
+                currentIntroStep++;
+                updateIntroUI();
+            } else {
+                skipIntro();
+            }
+        }
+
+        function skipIntro() {
+            switchPage('page-login');
+        }
+
+        // --- 登录逻辑 ---
+        function handleLogin() {
+            const btn = document.getElementById('btnLogin');
+            const text = document.getElementById('loginText');
+            const loading = document.getElementById('loginLoading');
+
+            text.classList.add('hidden');
+            loading.classList.remove('hidden');
+            btn.classList.add('opacity-80', 'cursor-not-allowed', 'scale-[0.98]');
+            
+            setTimeout(() => {
+                text.classList.remove('hidden');
+                loading.classList.add('hidden');
+                btn.classList.remove('opacity-80', 'cursor-not-allowed', 'scale-[0.98]');
+                switchPage('page-store');
+            }, 800);
+        }
+
+        // --- 核心路由与导航联动 ---
+        function switchPage(pageId) {
+            // 隐藏所有页面
+            document.querySelectorAll('.page-view').forEach(el => el.classList.remove('active'));
+            // 显示目标页面
+            setTimeout(() => { document.getElementById(pageId).classList.add('active'); }, 10);
+
+            // 控制底部导航栏显示/隐藏
+            const mainNav = document.getElementById('main-nav');
+            const navPages = ['page-dashboard', 'page-map', 'page-sms', 'page-profile'];
+            
+            if (navPages.includes(pageId) || pageId === 'page-report') {
+                mainNav.classList.remove('opacity-0', 'pointer-events-none');
+                mainNav.classList.add('opacity-100', 'pointer-events-auto');
+            } else {
+                mainNav.classList.add('opacity-0', 'pointer-events-none');
+                mainNav.classList.remove('opacity-100', 'pointer-events-auto');
+            }
+
+            // 如果点击的是报表页，不改变底部 Tab 选中状态
+            if(pageId === 'page-report') return;
+
+            // 更新底部导航高亮状态
+            const targetTabId = 'tab-' + pageId.split('-')[1];
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                const bg = tab.querySelector('.tab-bg');
+                const icon = tab.querySelector('.tab-icon');
+                const text = tab.querySelector('.tab-text');
+                
+                if(tab.id === targetTabId) {
+                    tab.classList.add('text-obsidian');
+                    tab.classList.remove('text-slate-400');
+                    bg.classList.add('bg-slate-100');
+                    icon.classList.replace('ph-bold', 'ph-fill');
+                    text.classList.replace('font-medium', 'font-bold');
+                } else {
+                    tab.classList.remove('text-obsidian');
+                    tab.classList.add('text-slate-400');
+                    bg.classList.remove('bg-slate-100');
+                    icon.classList.replace('ph-fill', 'ph-bold');
+                    text.classList.replace('font-bold', 'font-medium');
+                }
+            });
+        }
+
+        // --- 地图模式切换 (POI / 商圈) ---
+        function toggleMapMode(mode) {
+            const btnPoi = document.getElementById('btnModePoi');
+            const btnArea = document.getElementById('btnModeArea');
+            const pinPoi = document.getElementById('mapPinPoi');
+            const pinArea = document.getElementById('mapPinArea');
+            const title = document.getElementById('drawerTitle');
+            const sub = document.getElementById('drawerSub');
+
+            if(mode === 'poi') {
+                btnPoi.className = 'p-3 bg-blue-50 text-blue-600 flex flex-col items-center justify-center cursor-pointer transition';
+                btnArea.className = 'p-3 bg-white text-slate-400 hover:text-slate-700 flex flex-col items-center justify-center cursor-pointer transition';
+                pinPoi.classList.remove('hidden');
+                pinArea.classList.add('hidden');
+                title.innerText = "星巴克(科兴科学园店)";
+                sub.innerHTML = '<i class="ph-fill ph-map-pin mr-1"></i> 深圳市南山区科苑路15号';
+            } else {
+                btnArea.className = 'p-3 bg-blue-50 text-blue-600 flex flex-col items-center justify-center cursor-pointer transition';
+                btnPoi.className = 'p-3 bg-white text-slate-400 hover:text-slate-700 flex flex-col items-center justify-center cursor-pointer transition';
+                pinArea.classList.remove('hidden');
+                pinPoi.classList.add('hidden');
+                title.innerText = "自定义雷达商圈";
+                sub.innerHTML = '<i class="ph-fill ph-target mr-1"></i> 以当前为中心，辐射 3.0km';
+            }
+        }
+
+        // --- 模态弹窗控制 ---
+        function showModal(id) { document.getElementById(id).classList.add('active'); }
+        function hideModal(id) { document.getElementById(id).classList.remove('active'); }
+        function confirmAnalysis() {
+            hideModal('costModal');
+            setTimeout(() => { switchPage('page-report'); }, 300);
+        }
+    </script>
+</body>
+</html>Í
